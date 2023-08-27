@@ -8,7 +8,7 @@ on:
 
 jobs:
 
-  build-AMD64:
+  build:
 
     runs-on: ubuntu-latest
 
