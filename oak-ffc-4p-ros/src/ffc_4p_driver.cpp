@@ -87,6 +87,7 @@ void FFC4PDriver::GetParameters(ros::NodeHandle& nh){
 	nh.getParam("calibration_mode", this->module_config_.calibration_mode);
 	nh.getParam("compresse_assemble_image", this->module_config_.compresse_assemble_image);
 	nh.getParam("enable_upside_down", this->module_config_.enable_upside_down);
+	nh.getParam("low_latency_mode", this->module_config_.low_latency_mode);
 	switch (this->module_config_.resolution){
 		case 720:{
 			this->resolution_ = dai::ColorCameraProperties::SensorResolution::THE_720_P;
@@ -124,7 +125,12 @@ int32_t FFC4PDriver::InitPipeline(){
 
 		rgb_cam->setResolution(this->resolution_);
 		rgb_cam->setInterleaved(false);
-		rgb_cam->setFps(this->module_config_.fps+FPS_BIAS);
+		if(this->module_config_.low_latency_mode){
+			rgb_cam->setFps(HARDWARE_FPS_MAX);
+		} else {
+			rgb_cam->setFps(this->module_config_.fps);
+		}
+
 		if(this->module_config_.auto_expose){
 			rgb_cam->initialControl.setAutoExposureEnable();
 		} else {
@@ -227,7 +233,6 @@ void FFC4PDriver::StartVideoStream(){
 void FFC4PDriver::RosGrabImgThread(){
 	while(this->ros_node_->ok() && this->is_run_){
 		GrabImg();
-		this->ros_rate_ptr_->sleep();
 	}
 	ROS_INFO("Stop grab tread\n");
 }
@@ -269,41 +274,33 @@ void FFC4PDriver::GrabImg(){
 			queue_node.cap_time_stamp =  video_frame->getTimestamp();
 			image_conter++;
 		} else {
-			ROS_WARN("Get %s frame failed\n",queue_node.topic.c_str());
+			ROS_WARN("Get %s frame failed\n",queue_node.topic.c_str()); //force to sync
 			return ;
 		}
 	}
 	//calibration mode publish four compressed image and raw assemble
 
-	if(image_conter == 4){//all cameras get images
-		if(this->module_config_.enable_upside_down){
-			for(auto && queue_node : this->image_queue_){
-				cv::flip(queue_node.image,queue_node.image,-1);
-			}
+	if(this->module_config_.enable_upside_down){
+		for(auto && queue_node : this->image_queue_){
+			cv::flip(queue_node.image,queue_node.image,-1);
 		}
-		if(this->module_config_.calibration_mode){
-			for(auto && queue_node : this->image_queue_){
-				cv_img.image = queue_node.image;
-				queue_node.ros_publisher.publish(cv_img.toCompressedImageMsg());
-			}
-		} else {
-			for(auto && queue_node : this->image_queue_){
-				queue_node.image.copyTo(assemble_cv_img.image(cv::Rect(colow_position,0,1280,720)));
-				colow_position += IMAGE_WIDTH;
-			}
-			if(this->module_config_.compresse_assemble_image){
-				assemble_image_publisher_.publish(assemble_cv_img.toCompressedImageMsg());
-			} else {
-				assemble_image_publisher_.publish(assemble_cv_img.toImageMsg());
-			}
-
+	}
+	if(this->module_config_.calibration_mode){
+		for(auto && queue_node : this->image_queue_){
+			cv_img.image = queue_node.image;
+			queue_node.ros_publisher.publish(cv_img.toCompressedImageMsg());
 		}
 	} else {
-		// for (auto && queue_node : this->image_queue_){
-		// 	//TODO: might be here
-		// 	queue_node.image = cv::Mat::zeros(720,1280,CV_8UC3);
-		// }
-		printf("[quadcam WARNING]Image not ready clear buffers\n");
+		for(auto && queue_node : this->image_queue_){
+			queue_node.image.copyTo(assemble_cv_img.image(cv::Rect(colow_position,0,1280,720)));
+			colow_position += IMAGE_WIDTH;
+		}
+		if(this->module_config_.compresse_assemble_image){
+			assemble_image_publisher_.publish(assemble_cv_img.toCompressedImageMsg());
+		} else {
+			assemble_image_publisher_.publish(assemble_cv_img.toImageMsg());
+		}
+
 	}
 	this->expose_time_publisher_.publish(expose_time_msg);
 	if(this->module_config_.show_img){
@@ -311,6 +308,7 @@ void FFC4PDriver::GrabImg(){
 			this->ShowImg(image_node,host_time_now);
 		}
 	}
+	this->ros_rate_ptr_->sleep();
 }
 
 //TODO fps counter

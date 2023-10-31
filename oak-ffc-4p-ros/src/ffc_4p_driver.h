@@ -10,6 +10,8 @@
 #include <depthai/utility/Clock.hpp>
 #include <chrono>
 
+#define HARDWARE_FPS_MAX 25
+
 namespace OAKCAM{
 
 class FFC4PDriver
@@ -24,6 +26,7 @@ class FFC4PDriver
       bool auto_awb = false;  
       bool compresse_assemble_image = false;
       bool enable_upside_down = false;
+      bool low_latency_mode = true;
       int32_t fps = 20.0;
       int32_t resolution = 720;
       int32_t expose_time_us = 10000;

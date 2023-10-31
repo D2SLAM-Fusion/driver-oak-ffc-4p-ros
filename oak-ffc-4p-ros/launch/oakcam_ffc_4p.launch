@@ -1,6 +1,6 @@
 <launch>
-    <arg name="show_img" default="false" />
-    <arg name="fps" default = "25" />
+    <arg name="show_img" default="false"/>
+    <arg name="fps" default = "20" />
     <arg name="resolution" default = "720"/>
     <arg name="auto_expose" default = "false"/>
     <arg name="expose_time_us" default = "40000"/>
@@ -12,6 +12,7 @@
     <arg name="calibration_mode" default = "false"/>
     <arg name="compresse_assemble_image" default = "false"/>
     <arg name="enable_upside_down" default = "true"/>
+    <arg name="low_latency_mode" default = "true"/>
 
     <node name="oakcam_ffc_4p_ros" pkg="oakcam_ffc_4p_ros" type="oakcam_ffc_4p_ros_node" output="screen">
         <param name="show_img" value="$(arg show_img)" />
@@ -27,6 +28,7 @@
         <param name="calibration_mode" value = "$(arg calibration_mode)"/>
         <param name="compresse_assemble_image" value = "$(arg compresse_assemble_image)"/>
         <param name="enable_upside_down" value ="$(arg enable_upside_down)"/>
+        <param name="low_latency_mode" value = "$(arg low_latency_mode)"/>
         <!-- <param name="cap_device" value="$(arg cap_device)" />
         <param name="width" value="$(arg width)" />
         <param name="height" value="$(arg height)" />
